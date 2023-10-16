@@ -2,13 +2,18 @@
 
 class ConstructionStages
 {
-	private $db;
+	private PDO $db;
 
 	public function __construct()
 	{
 		$this->db = Api::getDb();
 	}
 
+    /**
+     * List all construction stages
+     *
+     * @return array|false
+     */
 	public function getAll()
 	{
 		$stmt = $this->db->prepare("
@@ -28,7 +33,15 @@ class ConstructionStages
 		return $stmt->fetchAll(PDO::FETCH_ASSOC);
 	}
 
-	public function getSingle($id)
+    /**
+     * Retrieve single construction stage
+     *
+     * @param $id
+     * @return array
+     *
+     * @throws ConstructionStageNotfoundException
+     */
+    public function getSingle($id)
 	{
 		$stmt = $this->db->prepare("
 			SELECT
@@ -45,11 +58,25 @@ class ConstructionStages
 			WHERE ID = :id
 		");
 		$stmt->execute(['id' => $id]);
-		return $stmt->fetchAll(PDO::FETCH_ASSOC);
+		$stage = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // stage not found
+        if (!$stage) {
+            throw new ConstructionStageNotfoundException;
+        }
+
+        return $stage;
 	}
 
-	public function post(ConstructionStagesCreate $data)
-	{
+    /**
+     * Create new construction stage
+     *
+     * @param ConstructionStagesCreate $data
+     * @return array
+     * @throws ConstructionStageNotfoundException
+     */
+    public function post(ConstructionStagesCreate $data): array
+    {
 		$stmt = $this->db->prepare("
 			INSERT INTO construction_stages
 			    (name, start_date, end_date, duration, durationUnit, color, externalId, status)
@@ -67,4 +94,25 @@ class ConstructionStages
 		]);
 		return $this->getSingle($this->db->lastInsertId());
 	}
+
+    /**
+     * Mark construction stage as deleted
+     *
+     * @param $id
+     * @return string[]
+     * @throws ConstructionStageNotfoundException
+     * @throws RuntimeException
+     */
+    public function delete($id): array
+    {
+        $this->getSingle($id);
+
+        $stmt = $this->db->prepare("UPDATE construction_stages SET status = :status WHERE id = :id");
+        $bindings = ['id' => $id, 'status' => 'DELETED'];
+        if ($stmt->execute($bindings)) {
+            return ['message' => 'Deleted successfully'];
+        }
+
+        return ['message' => 'Failed to delete'];
+    }
 }

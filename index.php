@@ -16,7 +16,7 @@ class Api
 	{
 		self::$db = (new Database())->init();
 
-		$uri = strtolower(trim((string)$_SERVER['PATH_INFO'], '/'));
+		$uri = strtolower(trim((string)($_SERVER['PATH_INFO'] ?? ''), '/'));
 		$httpVerb = isset($_SERVER['REQUEST_METHOD']) ? strtolower($_SERVER['REQUEST_METHOD']) : 'cli';
 
 		$wildcards = [
@@ -37,6 +37,10 @@ class Api
 				'method' => 'post',
 				'bodyType' => 'ConstructionStagesCreate'
 			],
+            'delete constructionStages/(:num)' => [
+                'class' => 'ConstructionStages',
+                'method' => 'delete',
+            ],
 		];
 
 		$response = [
@@ -44,23 +48,31 @@ class Api
 		];
 
 		if ($uri) {
-
-			foreach ($routes as $pattern => $target) {
-				$pattern = str_replace(array_keys($wildcards), array_values($wildcards), $pattern);
-				if (preg_match('#^'.$pattern.'$#i', "{$httpVerb} {$uri}", $matches)) {
-					$params = [];
-					array_shift($matches);
-					if ($httpVerb === 'post') {
-						$data = json_decode(file_get_contents('php://input'));
-						$params = [new $target['bodyType']($data)];
-					}
-					$params = array_merge($params, $matches);
-					$response = call_user_func_array([new $target['class'], $target['method']], $params);
-					break;
-				}
-			}
-
-			echo json_encode($response, JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
+            try {
+                foreach ($routes as $pattern => $target) {
+                    $pattern = str_replace(array_keys($wildcards), array_values($wildcards), $pattern);
+                    if (preg_match('#^' . $pattern . '$#i', "{$httpVerb} {$uri}", $matches)) {
+                        $params = [];
+                        array_shift($matches);
+                        if ($httpVerb === 'post') {
+                            $data = json_decode(file_get_contents('php://input'));
+                            $params = [new $target['bodyType']($data)];
+                        }
+                        $params = array_merge($params, $matches);
+                        $response = call_user_func_array([new $target['class'], $target['method']], $params);
+                        break;
+                    }
+                }
+            } catch (ConstructionStageNotfoundException $exception) {
+                http_response_code(404);
+                $response['error'] = $exception->getMessage() ?: 'Construction stage not found.';
+            } catch (Throwable $exception) {
+                http_response_code(500);
+                $response['message'] = 'Server error';
+                $response['error'] = $exception->getMessage();
+            } finally {
+                echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            }
 		}
 	}
 }
