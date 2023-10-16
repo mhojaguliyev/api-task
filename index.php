@@ -37,6 +37,11 @@ class Api
 				'method' => 'post',
 				'bodyType' => 'ConstructionStagesCreate'
 			],
+            'patch constructionStages/(:num)' => [
+                'class' => 'ConstructionStages',
+                'method' => 'patch',
+                'bodyType' => 'ConstructionStagesUpdate'
+            ],
             'delete constructionStages/(:num)' => [
                 'class' => 'ConstructionStages',
                 'method' => 'delete',
@@ -54,7 +59,7 @@ class Api
                     if (preg_match('#^' . $pattern . '$#i', "{$httpVerb} {$uri}", $matches)) {
                         $params = [];
                         array_shift($matches);
-                        if ($httpVerb === 'post') {
+                        if (in_array($httpVerb, ['post', 'patch'])) {
                             $data = json_decode(file_get_contents('php://input'));
                             $params = [new $target['bodyType']($data)];
                         }
@@ -66,6 +71,10 @@ class Api
             } catch (ConstructionStageNotfoundException $exception) {
                 http_response_code(404);
                 $response['error'] = $exception->getMessage() ?: 'Construction stage not found.';
+            } catch (ValidationException $exception) {
+                http_response_code(422);
+                $response['error'] = $exception->getMessage() ?: 'Validation error';
+                $response['errors'] = $exception->getErrors();
             } catch (Throwable $exception) {
                 http_response_code(500);
                 $response['message'] = 'Server error';
