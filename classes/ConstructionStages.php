@@ -97,6 +97,14 @@ class ConstructionStages
         if ($validator->fails()) {
             throw new ValidationException($validator->getErrors());
         }
+        $validatedAttributes = $validator->getValidated();
+
+        // duration calculation
+        $validatedAttributes['duration'] = $this->calculateDuration(
+            $validatedAttributes['startDate'],
+            $validatedAttributes['endDate'] ?? null,
+            $validatedAttributes['durationUnit'] ?? 'DAYS'
+        );
 
         $stmt = $this->db->prepare(
             "
@@ -106,14 +114,14 @@ class ConstructionStages
 			"
         );
         $stmt->execute([
-            'name' => $data->name,
-            'start_date' => $data->startDate,
-            'end_date' => $data->endDate,
-            'duration' => $data->duration,
-            'durationUnit' => $data->durationUnit,
-            'color' => $data->color,
-            'externalId' => $data->externalId,
-            'status' => $data->status,
+            'name' => $validatedAttributes['name'],
+            'start_date' => $validatedAttributes['startDate'],
+            'end_date' => $validatedAttributes['endDate'] ?? null,
+            'duration' => $validatedAttributes['duration'],
+            'durationUnit' => $validatedAttributes['durationUnit'] ?? ($validatedAttributes['duration'] ? 'DAYS' : null),
+            'color' => $validatedAttributes['color'] ?? null,
+            'externalId' => $validatedAttributes['externalId'] ?? null,
+            'status' => $validatedAttributes['status'],
         ]);
         return $this->getSingle($this->db->lastInsertId());
     }
@@ -143,6 +151,16 @@ class ConstructionStages
         if (count($validator->getValidated()) > 0) {
             $validatedAttributes = $validator->getValidated();
             $validatedAttributes['id'] = $id;
+
+            // duration calculation
+            $validatedAttributes['duration'] = $this->calculateDuration(
+                $validatedAttributes['startDate'] ?? $stage['startDate'],
+                $validatedAttributes['endDate'] ?? $stage['endDate'] ?? null,
+                $validatedAttributes['durationUnit'] ?? $stage['durationUnit'] ?? 'DAYS'
+            );
+            if ($validatedAttributes['duration'] && empty($validatedAttributes['durationUnit'])) {
+                $validatedAttributes['durationUnit'] = $validatedAttributes['durationUnit'] ?? $stage['durationUnit'] ?? 'DAYS';
+            }
 
             // prepare sql
             $columns = '';
@@ -184,5 +202,55 @@ class ConstructionStages
         }
 
         return ['message' => 'Failed to delete'];
+    }
+
+    /**
+     * Calculate the duration between a start date and an end date based on the specified duration unit.
+     *
+     * @param string $start_date The start date in ISO8601 format (e.g., '2022-12-31T14:59:00Z').
+     * @param string|null $end_date The end date in ISO8601 format (or null if no end date).
+     * @param string $durationUnit The unit of duration ('HOURS', 'DAYS', or 'WEEKS', default is 'DAYS').
+     *
+     * @return float|null The calculated duration in the specified unit (null if invalid input).
+     *
+     * @throws Exception If the input date format is not valid.
+     */
+    private function calculateDuration($start_date, $end_date, $durationUnit = 'DAYS')
+    {
+        if (!$end_date) {
+            return null;
+        }
+
+        // start and end date timestamp
+        $startTimestamp = strtotime($start_date);
+        $endTimestamp = strtotime($end_date);
+
+        // Validate the start_date and end_date
+        if (!$startTimestamp || !$endTimestamp) {
+            return null;
+        }
+
+        // Initialize the duration to null.
+        $duration = null;
+
+        // Calculate duration based on the provided durationUnit.
+        if ($endTimestamp > $startTimestamp) {
+            switch ($durationUnit) {
+                case 'HOURS':
+                    // Calculate duration in hours.
+                    $duration = intval(($endTimestamp - $startTimestamp) / 3600); // Hours
+                    break;
+                case 'DAYS':
+                    // Calculate duration in days (default).
+                    $duration = intval(($endTimestamp - $startTimestamp) / 86400); // Days
+                    break;
+                case 'WEEKS':
+                    // Calculate duration in weeks.
+                    $duration = intval(($endTimestamp - $startTimestamp) / 604800); // Weeks
+                    break;
+            }
+        }
+
+        return $duration;
     }
 }
