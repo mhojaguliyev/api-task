@@ -9,12 +9,15 @@ class ConstructionStages
 {
     private $db;
 
+    private $dateTimeHelper;
+
     /**
      * ConstructionStages constructor.
      */
     public function __construct()
     {
         $this->db = Api::getDb();
+        $this->dateTimeHelper = new DateTimeHelper;
     }
 
     /**
@@ -87,6 +90,7 @@ class ConstructionStages
      * @return array
      * @throws ConstructionStageNotfoundException
      * @throws ValidationException
+     * @throws Exception
      */
     public function post(ConstructionStagesCreate $data): array
     {
@@ -100,7 +104,7 @@ class ConstructionStages
         $validatedAttributes = $validator->getValidated();
 
         // duration calculation
-        $validatedAttributes['duration'] = $this->calculateDuration(
+        $validatedAttributes['duration'] = $this->dateTimeHelper->calculateDuration(
             $validatedAttributes['startDate'],
             $validatedAttributes['endDate'] ?? null,
             $validatedAttributes['durationUnit'] ?? 'DAYS'
@@ -115,8 +119,8 @@ class ConstructionStages
         );
         $stmt->execute([
             'name' => $validatedAttributes['name'],
-            'start_date' => $this->convertDateFormat($validatedAttributes['startDate']),
-            'end_date' => $this->convertDateFormat($validatedAttributes['endDate'] ?? null),
+            'start_date' => $this->dateTimeHelper->convertDateFormat($validatedAttributes['startDate']),
+            'end_date' => $this->dateTimeHelper->convertDateFormat($validatedAttributes['endDate'] ?? null),
             'duration' => $validatedAttributes['duration'],
             'durationUnit' => $validatedAttributes['durationUnit'] ?? ($validatedAttributes['duration'] ? 'DAYS' : null),
             'color' => $validatedAttributes['color'] ?? null,
@@ -134,6 +138,7 @@ class ConstructionStages
      * @return array
      * @throws ConstructionStageNotfoundException
      * @throws ValidationException
+     * @throws Exception
      */
     public function patch(ConstructionStagesUpdate $data, $id): array
     {
@@ -153,7 +158,7 @@ class ConstructionStages
             $validatedAttributes['id'] = $id;
 
             // duration calculation
-            $validatedAttributes['duration'] = $this->calculateDuration(
+            $validatedAttributes['duration'] = $this->dateTimeHelper->calculateDuration(
                 $validatedAttributes['startDate'] ?? $stage['startDate'],
                 $validatedAttributes['endDate'] ?? $stage['endDate'] ?? null,
                 $validatedAttributes['durationUnit'] ?? $stage['durationUnit'] ?? 'DAYS'
@@ -168,7 +173,7 @@ class ConstructionStages
                 $column = $key;
                 if (strpos($column, 'Date') !== false) {
                     $column = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $column));
-                    $validatedAttributes[$key] = $this->convertDateFormat($value);
+                    $validatedAttributes[$key] = $this->dateTimeHelper->convertDateFormat($value);
                 }
                 $columns .= "$column = :$key,";
             }
@@ -203,72 +208,5 @@ class ConstructionStages
         }
 
         return ['message' => 'Failed to delete'];
-    }
-
-    /**
-     * Calculate the duration between a start date and an end date based on the specified duration unit.
-     *
-     * @param string $start_date The start date in ISO8601 format (e.g., '2022-12-31T14:59:00Z').
-     * @param string|null $end_date The end date in ISO8601 format (or null if no end date).
-     * @param string $durationUnit The unit of duration ('HOURS', 'DAYS', or 'WEEKS', default is 'DAYS').
-     *
-     * @return float|null The calculated duration in the specified unit (null if invalid input).
-     *
-     * @throws Exception If the input date format is not valid.
-     */
-    private function calculateDuration($start_date, $end_date, $durationUnit = 'DAYS')
-    {
-        if (!$end_date) {
-            return null;
-        }
-
-        // start and end date timestamp
-        $startTimestamp = strtotime($start_date);
-        $endTimestamp = strtotime($end_date);
-
-        // Validate the start_date and end_date
-        if (!$startTimestamp || !$endTimestamp) {
-            return null;
-        }
-
-        // Initialize the duration to null.
-        $duration = null;
-
-        // Calculate duration based on the provided durationUnit.
-        if ($endTimestamp > $startTimestamp) {
-            switch ($durationUnit) {
-                case 'HOURS':
-                    // Calculate duration in hours.
-                    $duration = intval(($endTimestamp - $startTimestamp) / 3600); // Hours
-                    break;
-                case 'DAYS':
-                    // Calculate duration in days (default).
-                    $duration = intval(($endTimestamp - $startTimestamp) / 86400); // Days
-                    break;
-                case 'WEEKS':
-                    // Calculate duration in weeks.
-                    $duration = intval(($endTimestamp - $startTimestamp) / 604800); // Weeks
-                    break;
-            }
-        }
-
-        return $duration;
-    }
-
-    /**
-     * Converts a date format from YYYY-MM-DDTHH:MM:SSZ to YYYY-MM-DD HH:MM:SS.
-     *
-     * @param string|null $dateString The date string to convert.
-     * @return string The converted date string.
-     */
-    private function convertDateFormat($dateString): ?string
-    {
-        $dateTime = DateTime::createFromFormat('Y-m-d\TH:i:sP', (string)$dateString);
-
-        if (!$dateTime) {
-            return null;
-        }
-
-        return $dateTime->format('Y-m-d H:i:s');
     }
 }
