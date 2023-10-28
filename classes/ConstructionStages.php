@@ -115,8 +115,8 @@ class ConstructionStages
         );
         $stmt->execute([
             'name' => $validatedAttributes['name'],
-            'start_date' => $validatedAttributes['startDate'],
-            'end_date' => $validatedAttributes['endDate'] ?? null,
+            'start_date' => $this->convertDateFormat($validatedAttributes['startDate']),
+            'end_date' => $this->convertDateFormat($validatedAttributes['endDate'] ?? null),
             'duration' => $validatedAttributes['duration'],
             'durationUnit' => $validatedAttributes['durationUnit'] ?? ($validatedAttributes['duration'] ? 'DAYS' : null),
             'color' => $validatedAttributes['color'] ?? null,
@@ -168,6 +168,7 @@ class ConstructionStages
                 $column = $key;
                 if (strpos($column, 'Date') !== false) {
                     $column = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $column));
+                    $validatedAttributes[$key] = $this->convertDateFormat($value);
                 }
                 $columns .= "$column = :$key,";
             }
@@ -252,5 +253,22 @@ class ConstructionStages
         }
 
         return $duration;
+    }
+
+    /**
+     * Converts a date format from YYYY-MM-DDTHH:MM:SSZ to YYYY-MM-DD HH:MM:SS.
+     *
+     * @param string|null $dateString The date string to convert.
+     * @return string The converted date string.
+     */
+    private function convertDateFormat($dateString): ?string
+    {
+        $dateTime = DateTime::createFromFormat('Y-m-d\TH:i:sP', (string)$dateString);
+
+        if (!$dateTime) {
+            return null;
+        }
+
+        return $dateTime->format('Y-m-d H:i:s');
     }
 }

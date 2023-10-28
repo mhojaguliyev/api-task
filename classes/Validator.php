@@ -384,18 +384,10 @@ class Validator
      */
     private function isISO8601(): bool
     {
-        if (preg_match('/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/', (string)$this->value, $parts)) {
-            $time = gmmktime($parts[4], $parts[5], $parts[6], $parts[2], $parts[3], $parts[1]);
-
-            $input_time = strtotime($this->value);
-            if ($input_time === false) {
-                return false;
-            }
-
-            return $input_time == $time;
-        }
-
-        return false;
+        return preg_match(
+            '/^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})(Z|[+-]\d{2}:\d{2})$/',
+            $this->value
+        );
     }
 
     /**

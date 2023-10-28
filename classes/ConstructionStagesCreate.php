@@ -43,7 +43,7 @@ class ConstructionStagesCreate extends ValidationDTO
         return [
             'name' => 'required|max:255',
             'startDate' => 'required|date|isISO8601',
-            'endDate' => 'date|after:{startDate}',
+            'endDate' => 'date|isISO8601|after:{startDate}',
             'durationUnit' => 'in:' . implode(',', ['HOURS', 'DAYS', 'WEEKS']),
             'color' => 'hex_color',
             'externalId' => 'max:255',
