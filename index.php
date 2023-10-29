@@ -14,6 +14,8 @@ class Api
 
 	public function __construct()
 	{
+        $this->showOnlyErrors();
+
 		self::$db = (new Database())->init();
 
 		$uri = strtolower(trim((string)($_SERVER['PATH_INFO'] ?? ''), '/'));
@@ -80,8 +82,13 @@ class Api
                 $response['message'] = 'Server error';
                 $response['error'] = $exception->getMessage();
             } finally {
+                header('Content-type: application/json');
                 echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
             }
 		}
 	}
+
+    private function showOnlyErrors() {
+        error_reporting(E_ERROR | E_PARSE);
+    }
 }
