@@ -224,17 +224,27 @@ class Validator
         $rulesArray = explode('|', $rules);
         $this->isRequired = in_array('required', $rulesArray);
 
-        foreach ($rulesArray as $rule) {
-            $position = strpos($rule, ':');
-            if ($position !== false) {
-                $ruleName = substr($rule, 0, $position);
-                $ruleParameter = substr($rule, $position + 1) ?? null;
-            } else {
-                $ruleName = $rule;
-                $ruleParameter = null;
-            }
+        if ($this->isRequired || !is_null($this->value)) {
+            foreach ($rulesArray as $rule) {
+                $position = strpos($rule, ':');
+                if ($position !== false) {
+                    $ruleName = substr($rule, 0, $position);
+                    $ruleParameter = substr($rule, $position + 1) ?? null;
+                } else {
+                    $ruleName = $rule;
+                    $ruleParameter = null;
+                }
 
-            $this->callValidationMethod($ruleName, $ruleParameter);
+                if ($this->callValidationMethod($ruleName, $ruleParameter)) {
+                    $this->addToValidated();
+                } else {
+                    $this->addToErrors($this->getFormattedMessage($ruleName, $ruleParameter));
+                }
+            }
+        } else {
+            if ($this->requestContains($this->propertyName)) {
+                $this->addToValidated();
+            }
         }
     }
 
@@ -243,6 +253,7 @@ class Validator
      *
      * @param string $ruleName The name of the validation rule.
      * @param mixed|null $ruleParameter The parameter for the validation rule, if applicable.
+     * @return bool
      */
     private function callValidationMethod($ruleName, $ruleParameter)
     {
@@ -273,11 +284,7 @@ class Validator
             $isValid = $this->$ruleName();
         }
 
-        if ($isValid) {
-            $this->addToValidated();
-        } elseif ($this->isRequired || $this->requestContains($this->propertyName)) {
-            $this->addToErrors($this->getFormattedMessage($ruleName, $ruleParameter));
-        }
+        return $isValid;
     }
 
     /**
@@ -386,7 +393,7 @@ class Validator
     {
         return preg_match(
             '/^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})(Z|[+-]\d{2}:\d{2})$/',
-            $this->value
+            (string)$this->value
         );
     }
 
