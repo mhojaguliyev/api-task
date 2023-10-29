@@ -106,9 +106,12 @@ class ConstructionStages
         // duration calculation
         $validatedAttributes['duration'] = $this->dateTimeHelper->calculateDuration(
             $validatedAttributes['startDate'],
-            $validatedAttributes['endDate'] ?? null,
-            $validatedAttributes['durationUnit'] ?? 'DAYS'
+            $validatedAttributes['endDate'] ?: null,
+            $validatedAttributes['durationUnit'] ?: 'DAYS'
         );
+        if ($validatedAttributes['duration'] && empty($validatedAttributes['durationUnit'])) {
+            $validatedAttributes['durationUnit'] = $validatedAttributes['durationUnit'] ?: 'DAYS';
+        }
 
         $stmt = $this->db->prepare(
             "
@@ -120,9 +123,9 @@ class ConstructionStages
         $stmt->execute([
             'name' => $validatedAttributes['name'],
             'start_date' => $this->dateTimeHelper->convertDateFormat($validatedAttributes['startDate']),
-            'end_date' => $this->dateTimeHelper->convertDateFormat($validatedAttributes['endDate'] ?? null),
+            'end_date' => $this->dateTimeHelper->convertDateFormat($validatedAttributes['endDate'] ?: null),
             'duration' => $validatedAttributes['duration'],
-            'durationUnit' => $validatedAttributes['durationUnit'] ?? ($validatedAttributes['duration'] ? 'DAYS' : null),
+            'durationUnit' => $validatedAttributes['durationUnit'] ?: ($validatedAttributes['duration'] ? 'DAYS' : null),
             'color' => $validatedAttributes['color'] ?? null,
             'externalId' => $validatedAttributes['externalId'] ?? null,
             'status' => $validatedAttributes['status'],
@@ -159,12 +162,12 @@ class ConstructionStages
 
             // duration calculation
             $validatedAttributes['duration'] = $this->dateTimeHelper->calculateDuration(
-                $validatedAttributes['startDate'] ?? $stage['startDate'],
-                $validatedAttributes['endDate'] ?? $stage['endDate'] ?? null,
-                $validatedAttributes['durationUnit'] ?? $stage['durationUnit'] ?? 'DAYS'
+                $validatedAttributes['startDate'] ?: $stage['startDate'],
+                $validatedAttributes['endDate'] ?: $stage['endDate'] ?: null,
+                $validatedAttributes['durationUnit'] ?: $stage['durationUnit'] ?: 'DAYS'
             );
             if ($validatedAttributes['duration'] && empty($validatedAttributes['durationUnit'])) {
-                $validatedAttributes['durationUnit'] = $validatedAttributes['durationUnit'] ?? $stage['durationUnit'] ?? 'DAYS';
+                $validatedAttributes['durationUnit'] = $validatedAttributes['durationUnit'] ?: $stage['durationUnit'] ?: 'DAYS';
             }
 
             // prepare sql

@@ -29,49 +29,54 @@ class DateTimeHelper
             return null; // Invalid end_date
         }
 
-        $start_datetime = new DateTime($startDate);
-        $end_datetime = new DateTime($endDate);
+        $startDatetime = new DateTime($startDate);
+        $endDatetime = new DateTime($endDate);
 
-        if ($start_datetime >= $end_datetime) {
+        if ($startDatetime >= $endDatetime) {
             return null; // end_date is not later than start_date
         }
+
+        // date interval
+        $diff = $startDatetime->diff($endDatetime);
 
         // Calculate the duration based on the provided durationUnit
         switch (strtoupper($durationUnit)) {
             case 'HOURS':
-                $duration = $start_datetime->diff($end_datetime)->h;
+                $duration = $diff->days * 24 + $diff->h;
                 break;
             case 'DAYS':
-                $duration = $start_datetime->diff($end_datetime)->days;
+                $duration = $diff->days + $diff->h / 24;
                 break;
             case 'WEEKS':
-                $duration = $start_datetime->diff($end_datetime)->days / 7;
+                $duration = $diff->days / 7 + $diff->h/ 7 / 24;
                 break;
             default:
                 return null; // Invalid durationUnit
         }
 
         // Round the duration to the nearest whole hour
-        $duration = round($duration);
+        $duration = round($duration, 2);
 
         return $duration;
     }
 
 
     /**
-     * Converts a date format from YYYY-MM-DDTHH:MM:SSZ to YYYY-MM-DD HH:MM:SS.
+     * Converts a date format.
      *
-     * @param string|null $isoDate The date string to convert.
-     * @return string The converted date string.
+     * @param string|null $date The date string to convert.
+     * @param string $toFormat
+     * @param string $fromFormat
+     * @return string|null The converted date string.
      */
-    public function convertDateFormat($isoDate)
+    public function convertDateFormat($date, $toFormat = 'Y-m-d H:i:s', $fromFormat = 'Y-m-d\TH:i:sP')
     {
-        $dateTime = DateTime::createFromFormat('Y-m-d\TH:i:sP', (string)$isoDate);
+        $dateTime = DateTime::createFromFormat($fromFormat, (string)$date);
 
         if (!$dateTime) {
             return null;
         }
 
-        return $dateTime->format('Y-m-d H:i:s');
+        return $dateTime->format($toFormat);
     }
 }
